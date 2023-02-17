@@ -50,35 +50,58 @@ def find_flights(origin, destination, departure_date, return_date, num_adults):
     return flights.data
 
 
-def clean_flights(flights):
+def clean_flights(flights, granular=0):
     """
     Cleans flight details from JSON and outputs a data frame with relevant details.
     :param flights: JSON with flight details
+    :param granular: If set to 1, it will return a more granular dataset including each segment. If 0, it will return 1 row per itinerary
     :return: Pandas dataframe with flight details
     """
-    flights_df = pd.DataFrame(columns=["ID", "Airline", "Number of Stops", "Origin", "Destination",
-                                       "Departure", "Arrival", "Duration", "Baggage", "Price", "Currency"])
-
     flights_data = []
 
     # Populate dataframe with data from Amadeus
-    for flight in flights:
-        for num_itin, itinerary in enumerate(flight["itineraries"]):
-            for num_seg, segment in enumerate(itinerary["segments"]):
-                flights_data.append({
-                    "ID": flight["id"],
-                    "Airline Code": segment["carrierCode"],
-                    "Number of Stops": segment["numberOfStops"],
-                    "Origin": segment["departure"]["iataCode"],
-                    "Destination": segment["arrival"]["iataCode"],
-                    "Departure": segment["departure"]["at"],
-                    "Arrival": segment["arrival"]["at"],
-                    "Duration": itinerary["duration"],
-                    "Baggage": len(flight["travelerPricings"][0]["fareDetailsBySegment"][(num_itin-1) * (num_seg-1)]["includedCheckedBags"]),
-                    "Cabin": flight["travelerPricings"][0]["fareDetailsBySegment"][(num_itin-1) * (num_seg-1)]["cabin"],
-                    "Price": flight["price"]["grandTotal"],
-                    "Currency": flight["price"]["currency"]
-                })
+    if granular:
+        flights_df = pd.DataFrame(columns=["ID", "Airline", "Number of Stops", "Origin", "Destination",
+                                           "Departure", "Arrival", "Duration", "Baggage", "Price", "Currency"])
+
+        for flight in flights:
+            for num_itin, itinerary in enumerate(flight["itineraries"]):
+                for num_seg, segment in enumerate(itinerary["segments"]):
+                    flights_data.append({
+                        "ID": flight["id"],
+                        "Airline Code": segment["carrierCode"],
+                        "Number of Stops": segment["numberOfStops"],
+                        "Origin": segment["departure"]["iataCode"],
+                        "Destination": segment["arrival"]["iataCode"],
+                        "Departure": segment["departure"]["at"],
+                        "Arrival": segment["arrival"]["at"],
+                        "Duration": itinerary["duration"],
+                        "Baggage": len(flight["travelerPricings"][0]["fareDetailsBySegment"][(num_itin-1) * (num_seg-1)]["includedCheckedBags"]),
+                        "Cabin": flight["travelerPricings"][0]["fareDetailsBySegment"][(num_itin-1) * (num_seg-1)]["cabin"],
+                        "Price": flight["price"]["grandTotal"],
+                        "Currency": flight["price"]["currency"]
+                    })
+
+    else:
+        flights_df = pd.DataFrame(columns=["ID", "Airline", "Origin", "Destination",
+                                           "Departure", "Arrival", "Price", "Currency"])
+
+        for flight in flights:
+            # Grab length of itineraries and segments for return so that we can grab only the final legs
+            len_return_itineraries = len(flight["itineraries"])-1
+            len_return_segments = len(flight["itineraries"][len_return_itineraries]["segments"])-1
+
+            # Add to dataset
+            flights_data.append({
+                "ID": flight["id"],
+                "Airline Code": flight["validatingAirlineCodes"][0],
+                "Origin": flight["itineraries"][0]["segments"][0]["departure"]["iataCode"],
+                "Destination": flight["itineraries"][len_return_itineraries]["segments"][0]["departure"]["iataCode"],
+                "Departure": flight["itineraries"][0]["segments"][0]["departure"]["at"],
+                "Arrival": flight["itineraries"][len_return_itineraries]["segments"][len_return_segments]["arrival"]["at"],
+                "Price": flight["price"]["grandTotal"],
+                "Currency": flight["price"]["currency"]
+            })
 
     # Append list to dataframe and return
     flights_df = flights_df.append(flights_data)
@@ -108,7 +131,7 @@ if __name__ == "__main__":
 
     # Generate and save dataframe
     file_path = f"./data/output/{origin}-{destination}-D{departure_date}-R{return_date}-Ad{num_adults}.csv"
-    flights_df = clean_flights(flights)
+    flights_df = clean_flights(flights, granular=1)
     flights_df.to_csv(file_path)
 
 
