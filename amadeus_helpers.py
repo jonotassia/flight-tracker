@@ -188,7 +188,8 @@ def graph_price_by_date_range(price_df, departure_range_length, ax=None, lowest_
     # Graph average price per departure/arrival date
     if not ax:
         fig, ax = plt.subplots(figsize=(14, 10))
-        plt.xticks(rotation="vertical")
+
+    ax.tick_params(axis="x", labelrotation=90)
 
     if lowest_price:
         # Highlight minimum values
@@ -198,7 +199,6 @@ def graph_price_by_date_range(price_df, departure_range_length, ax=None, lowest_
         price_threshold = sorted_price.mean() - sorted_price["Price"].std()
 
         # Use departure range as index to color so that all flights on a given departure date are colored the same
-        color_list = ["#e60049", "#0bb4ff", "#50e991", "#e6d800", "#9b19f5", "#ffa300", "#dc0ab4", "#b3d4ff", "#00bfa0"]
         for row_num in range(len(grouped_price) - 1):
             if grouped_price.iloc[row_num]["Price"] <= float(price_threshold):
                 ax.bar(grouped_price.iloc[row_num]["Date Range"], grouped_price.iloc[row_num]["Price"], color="green")
